@@ -73,7 +73,8 @@ from ..responses import (DeleteDevicesError, DeleteDevicesResponse,
                          PartialSyncResponse,
                          ThumbnailError, ThumbnailResponse,
                          ToDeviceError, ToDeviceResponse,
-                         UploadError, UploadResponse)
+                         UploadError, UploadResponse,
+                         RoomReadMarkersResponse)
 
 if False:
     from ..events import MegolmEvent
@@ -379,7 +380,6 @@ class AsyncClient(Client):
 
             for event in info.invite_state:
                 room.handle_event(event)
-
                 for cb in self.event_callbacks:
                     if (cb.filter is None or isinstance(event, cb.filter)):
                         await asyncio.coroutine(cb.func)(room, event)
@@ -1677,6 +1677,45 @@ class AsyncClient(Client):
             data,
             response_data=(room_id, )
         )
+
+    @logged_in
+    async def room_read_markers(
+        self,
+        room_id,            # type: str
+        fully_read_event,   # type: str
+        read_event=None,    # type: Optional[str]
+    ):
+        # type: (...) -> Tuple[UUID, bytes]
+        """Update read markers for a room.
+
+        This sets the position of the read marker for a given room,
+        and optionally the read receipt's location.
+
+        Returns a unique uuid that identifies the request and the bytes that
+        should be sent to the socket.
+
+        Args:
+            room_id (str): Room id of the room of the room where the read
+                markers should be updated
+            fully_read_event (str): The event ID the read marker should be
+                located at.
+            read_event (Optional[str]): The event ID to set the read
+                receipt location at.
+        """
+        method, path, data = Api.room_read_markers(
+            self.access_token,
+            room_id,
+            fully_read_event,
+            read_event
+        )
+
+        return await self._send(
+            RoomReadMarkersResponse,
+            method,
+            path,
+            data,
+            response_data=(room_id, )
+        )   
 
     @staticmethod
     async def _process_data_chunk(chunk, monitor=None):
